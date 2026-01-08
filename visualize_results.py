@@ -8,24 +8,42 @@ import os
 import cv2
 
 def visualize(args):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda_is_available() else 'cpu')
     print(f"Using device: {device}")
     
     val_dataset = LoveDADataset(root_dir=args.data_dir, split='Val', points_per_class=10)
     
     model = UNetResNet18(num_classes=8, pretrained=False).to(device)
-    if os.path.exists(args.model_path):
-        model.load_state_dict(torch.load(args.model_path, map_location=device))
-        print(f"Loaded model from {args.model_path}")
+    
+    # Logic to find model
+    model_path = args.model_path
+    
+    # If default name, check if user meant a specific experiment
+    if model_path == 'best_model.pth' and args.exp_name:
+         path_candidate = os.path.join("result", f"best_model_{args.exp_name}.pth")
+         if os.path.exists(path_candidate):
+             model_path = path_candidate
+
+    if os.path.exists(model_path):
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        print(f"Loaded model from {model_path}")
     else:
-        print(f"Error: Model file {args.model_path} not found.")
-        if os.path.exists("result/best_model_exp2.pth"):
-             print("Found best_model_exp2.pth, loading that instead.")
-             model.load_state_dict(torch.load("result/best_model_exp2.pth", map_location=device))
-        elif os.path.exists("result/best_model.pth"):
-             print("Found best_model.pth, loading that instead.")
-             model.load_state_dict(torch.load("result/best_model.pth", map_location=device))
-        else:
+        # Fallback search in result/
+        print(f"Model file {model_path} not found. Searching result/...")
+        candidates = [
+            os.path.join("result", "best_model.pth"),
+            os.path.join("result", "best_model_exp2.pth"), # Legacy
+            "best_model.pth" # Legacy
+        ]
+        found = False
+        for c in candidates:
+            if os.path.exists(c):
+                print(f"Found {c}, loading...")
+                model.load_state_dict(torch.load(c, map_location=device))
+                found = True
+                break
+        if not found:
+             print("Error: No model found.")
              return
 
     model.eval()
@@ -74,6 +92,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_dir', type=str, default='e:/Esraa/semi_supervised/LoveDA', help='Path to LoveDA dataset')
     parser.add_argument('--model_path', type=str, default='best_model.pth', help='Path to trained model')
     parser.add_argument('--num_images', type=int, default=3, help='Number of images to visualize')
+    parser.add_argument('--exp_name', type=str, default=None, help='Experiment name to load')
     args = parser.parse_args()
     
     if not os.path.exists(args.data_dir):
