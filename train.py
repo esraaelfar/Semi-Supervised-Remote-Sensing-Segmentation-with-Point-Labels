@@ -112,11 +112,13 @@ def train(args):
         
         if iou > best_iou:
             best_iou = iou
-            torch.save(model.state_dict(), "result/best_model.pth")
-            print("Saved Best Model")
+            save_path = os.path.join("result", f"best_model_{args.exp_name}.pth")
+            torch.save(model.state_dict(), save_path)
+            print(f"Saved Best Model to {save_path}")
 
     print("Training finished.")
-    torch.save(model.state_dict(), "result/model_final.pth")
+    final_save_path = os.path.join("result", f"model_final_{args.exp_name}.pth")
+    torch.save(model.state_dict(), final_save_path)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -125,7 +127,11 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
     parser.add_argument('--points', type=int, default=10, help='Points per class for simulation')
+    parser.add_argument('--exp_name', type=str, default='exp', help='Experiment name for saving models')
     args = parser.parse_args()
+    
+    # Ensure result dir exists
+    os.makedirs("result", exist_ok=True)
     
     if not os.path.exists(args.data_dir):
         print(f"Error: Data directory '{args.data_dir}' does not exist.")
